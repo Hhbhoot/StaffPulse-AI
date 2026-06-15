@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -53,6 +55,12 @@ export function AdminUsers() {
     }
   };
 
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const paginatedUsers = users.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -77,7 +85,7 @@ export function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {paginatedUsers.map((u) => (
                 <tr
                   key={u.id}
                   className="border-b border-white/5 hover:bg-white/5 transition-colors"
@@ -102,7 +110,7 @@ export function AdminUsers() {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {paginatedUsers.length === 0 && (
                 <tr>
                   <td
                     colSpan={4}
@@ -115,6 +123,29 @@ export function AdminUsers() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center px-4 py-4 border-t border-white/10">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm font-medium text-white bg-white/5 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-400">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 text-sm font-medium text-white bg-white/5 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </GlassCard>
 
       <AnimatePresence>
