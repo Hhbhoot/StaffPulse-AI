@@ -5,11 +5,45 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
 const indexName = process.env.PINECONE_INDEX_NAME!;
 
+const withRetry = async <T>(
+  primaryFn: () => Promise<T>,
+  fallbackFn?: () => Promise<T>,
+  retries = 3,
+  delay = 2000
+): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await primaryFn();
+    } catch (error: any) {
+      const isRetryable =
+        error?.status === 503 ||
+        error?.status === 429 ||
+        error?.message?.includes('503') ||
+        error?.message?.includes('429');
+      if (i < retries - 1 && isRetryable) {
+        console.warn(
+          `AI API error (${error?.status || '503/429'}). Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      } else if (fallbackFn && isRetryable) {
+        console.warn(`Primary model failed after ${retries} attempts. Trying fallback model...`);
+        return await fallbackFn();
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Unreachable');
+};
+
 export const generateEmbedding = async (text: string) => {
-  const response = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents: text,
-  });
+  const response = await withRetry(() =>
+    ai.models.embedContent({
+      model: 'gemini-embedding-001',
+      contents: text,
+    })
+  );
 
   if (!response.embeddings?.[0]?.values) {
     throw new Error('Failed to generate embeddings');
@@ -60,10 +94,18 @@ ${context.join('\n\n')}
 Question:
 ${question}`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-  });
+  const response = await withRetry(
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      }),
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+      })
+  );
 
   return response.text;
 };
@@ -76,10 +118,18 @@ Provide a professional, concise summary.
 Data:
 ${JSON.stringify(attendanceData, null, 2)}`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-  });
+  const response = await withRetry(
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      }),
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+      })
+  );
 
   return response.text;
 };
@@ -95,10 +145,18 @@ ${JSON.stringify(attendanceData, null, 2)}
 User Question:
 ${question}`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-  });
+  const response = await withRetry(
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      }),
+    () =>
+      ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+      })
+  );
 
   return response.text;
 };
