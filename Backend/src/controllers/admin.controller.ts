@@ -161,16 +161,33 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
 
 export const getAllAttendance = async (req: AuthRequest, res: Response) => {
   try {
-    const attendanceRecords = await prisma.attendance.findMany({
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, role: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    res.status(200).json({ attendance: attendanceRecords });
+    const [attendanceRecords, total] = await Promise.all([
+      prisma.attendance.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, role: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.attendance.count(),
+    ]);
+
+    res.status(200).json({
+      attendance: attendanceRecords,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Get all attendance error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -373,13 +390,32 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
 
 export const getAIReport = async (req: AuthRequest, res: Response) => {
   try {
-    const attendance = await prisma.attendance.findMany({
-      include: { user: { select: { name: true, role: true } } },
-      take: 100, // Limit for API payload size
-      orderBy: { createdAt: 'desc' },
+    const groupedAttendance = await prisma.attendance.groupBy({
+      by: ['userId'],
+      _sum: { workingHours: true, overtimeHours: true },
+      _count: { id: true },
+      where: { workingHours: { not: null } },
     });
 
-    const report = await generateAttendanceReport(attendance);
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, role: true },
+    });
+
+    const metrics = groupedAttendance.map((g) => {
+      const user = users.find((u) => u.id === g.userId);
+      return {
+        name: user?.name || 'Unknown',
+        role: user?.role,
+        daysPresent: g._count.id,
+        totalWorkingHours: g._sum.workingHours ? parseFloat(g._sum.workingHours.toFixed(2)) : 0,
+        totalOvertimeHours: g._sum.overtimeHours ? parseFloat(g._sum.overtimeHours.toFixed(2)) : 0,
+      };
+    });
+
+    const report = await generateAttendanceReport({
+      overview: 'Company-wide Attendance Metrics',
+      employeeStats: metrics,
+    });
     res.json({ report });
   } catch (error) {
     console.error('Admin AI Report error:', error);

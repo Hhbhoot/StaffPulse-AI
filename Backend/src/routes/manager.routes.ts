@@ -7,6 +7,7 @@ import {
   updateLeaveStatus,
   getAIReport,
   getTeamStats,
+  getStaffDetails,
 } from '../controllers/manager.controller';
 import { verifyToken, authorizeRoles } from '../middlewares/auth.middleware';
 
@@ -18,6 +19,7 @@ router.use(authorizeRoles('MANAGER'));
 
 router.post('/staff', createStaff);
 router.get('/staff', getOwnStaff);
+router.get('/staff/:id', getStaffDetails);
 router.get('/team-attendance', getTeamAttendance);
 router.get('/attendance/stats', getTeamStats);
 router.get('/team-leaves', getTeamLeaves);

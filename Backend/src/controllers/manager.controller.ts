@@ -66,6 +66,56 @@ export const getOwnStaff = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getStaffDetails = async (req: AuthRequest, res: Response) => {
+  try {
+    const managerId = req.user!.userId;
+    const staffId = req.params.id as string;
+
+    const staff = await prisma.user.findUnique({
+      where: { id: staffId, managerId },
+      select: { id: true, name: true, email: true, createdAt: true }
+    });
+
+    if (!staff) {
+      res.status(404).json({ error: 'Staff member not found or access denied' });
+      return;
+    }
+
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { userId: staffId },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+
+    const leaveRequests = await prisma.leaveRequest.findMany({
+      where: { userId: staffId },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+
+    const stats = await prisma.attendance.aggregate({
+      where: { userId: staffId, workingHours: { not: null } },
+      _sum: { workingHours: true, overtimeHours: true },
+      _count: { id: true }
+    });
+
+    res.status(200).json({
+      staff,
+      attendance: attendanceRecords,
+      leaves: leaveRequests,
+      stats: {
+        totalWorkingHours: stats._sum.workingHours ? parseFloat(stats._sum.workingHours.toFixed(2)) : 0,
+        totalOvertimeHours: stats._sum.overtimeHours ? parseFloat(stats._sum.overtimeHours.toFixed(2)) : 0,
+        daysPresent: stats._count.id
+      }
+    });
+
+  } catch (error) {
+    console.error('Get staff details error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getTeamAttendance = async (req: AuthRequest, res: Response) => {
   try {
     const managerId = req.user!.userId;
@@ -77,17 +127,36 @@ export const getTeamAttendance = async (req: AuthRequest, res: Response) => {
 
     const staffIds = staffList.map((s) => s.id);
 
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: { userId: { in: staffIds } },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    res.status(200).json({ attendance: attendanceRecords });
+    const [attendanceRecords, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { userId: { in: staffIds } },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.attendance.count({
+        where: { userId: { in: staffIds } },
+      }),
+    ]);
+
+    res.status(200).json({
+      attendance: attendanceRecords,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Get team attendance error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -219,23 +288,35 @@ export const getAIReport = async (req: AuthRequest, res: Response) => {
 
     const staffList = await prisma.user.findMany({
       where: { managerId },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
     const staffIds = staffList.map((s) => s.id);
 
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: { userId: { in: staffIds } },
-      include: {
-        user: {
-          select: { name: true, email: true },
-        },
+    const groupedAttendance = await prisma.attendance.groupBy({
+      by: ['userId'],
+      _sum: { workingHours: true, overtimeHours: true },
+      _count: { id: true },
+      where: {
+        userId: { in: staffIds },
+        workingHours: { not: null },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100, // Limit
     });
 
-    const report = await generateAttendanceReport(attendanceRecords);
+    const metrics = groupedAttendance.map((g) => {
+      const user = staffList.find((u) => u.id === g.userId) as any;
+      return {
+        name: user?.name || 'Unknown',
+        daysPresent: g._count.id,
+        totalWorkingHours: g._sum.workingHours ? parseFloat(g._sum.workingHours.toFixed(2)) : 0,
+        totalOvertimeHours: g._sum.overtimeHours ? parseFloat(g._sum.overtimeHours.toFixed(2)) : 0,
+      };
+    });
+
+    const report = await generateAttendanceReport({
+      overview: 'Team Attendance Metrics',
+      employeeStats: metrics,
+    });
     res.json({ report });
   } catch (error) {
     console.error('Manager AI Report error:', error);
