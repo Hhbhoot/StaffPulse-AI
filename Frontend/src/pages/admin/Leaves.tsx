@@ -49,24 +49,22 @@ export function AdminLeaves() {
                   {leave.status}
                 </div>
               </div>
-              <div className="flex gap-2">
-                {leave.status !== 'APPROVED' && (
+              {leave.status === 'PENDING' && (
+                <div className="flex gap-2">
                   <Button
                     onClick={() => updateStatus(leave.id, 'APPROVED')}
                     className="bg-green-500 hover:bg-green-600 shadow-green-500/30"
                   >
                     Approve
                   </Button>
-                )}
-                {leave.status !== 'REJECTED' && (
                   <Button
                     onClick={() => updateStatus(leave.id, 'REJECTED')}
                     variant="danger"
                   >
                     Reject
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))}
           {leaves.length === 0 && (

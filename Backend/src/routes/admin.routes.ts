@@ -11,6 +11,7 @@ import {
   uploadDocument,
   getAIReport,
   getAllUsers,
+  getUserDetails,
 } from '../controllers/admin.controller';
 import { verifyToken, authorizeRoles } from '../middlewares/auth.middleware';
 
@@ -25,6 +26,7 @@ router.use(verifyToken);
 router.use(authorizeRoles('ADMIN'));
 
 router.get('/users', getAllUsers);
+router.get('/users/:id', getUserDetails);
 router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);

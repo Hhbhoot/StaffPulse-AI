@@ -26,6 +26,53 @@ const assignManagerSchema = z.object({
   managerId: z.string().uuid(),
 });
 
+export const getUserDetails = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.params.id as string;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true, managerId: true, createdAt: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const leaveRequests = await prisma.leaveRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    const allAttendance = await prisma.attendance.findMany({ where: { userId } });
+    const totalWorkingHours = parseFloat(
+      allAttendance.reduce((acc, curr) => acc + (curr.workingHours || 0), 0).toFixed(2)
+    );
+    const totalOvertimeHours = parseFloat(
+      allAttendance.reduce((acc, curr) => acc + (curr.overtimeHours || 0), 0).toFixed(2)
+    );
+    const daysPresent = allAttendance.length;
+
+    res.status(200).json({
+      user,
+      stats: { totalWorkingHours, totalOvertimeHours, daysPresent },
+      attendance: attendanceRecords,
+      leaves: leaveRequests,
+    });
+  } catch (error) {
+    console.error('Get user details error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const createUser = async (req: AuthRequest, res: Response) => {
   try {
     const parsed = createUserSchema.safeParse(req.body);
@@ -290,6 +337,11 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
 
     if (!leaveRequest) {
       res.status(404).json({ error: 'Leave request not found' });
+      return;
+    }
+
+    if (leaveRequest.status !== 'PENDING') {
+      res.status(400).json({ error: 'Leave request has already been processed' });
       return;
     }
 

@@ -10,6 +10,30 @@ export function StaffDashboard() {
   const [todayRecord, setTodayRecord] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+
+  useEffect(() => {
+    let interval: any;
+    if (todayRecord && !todayRecord.checkOut) {
+      const checkInTime = new Date(todayRecord.checkIn).getTime();
+      const updateTimer = () => {
+        const now = new Date().getTime();
+        setElapsedSeconds(Math.floor((now - checkInTime) / 1000));
+      };
+      updateTimer(); // initial call
+      interval = setInterval(updateTimer, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [todayRecord]);
+
+  const formatTime = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -77,15 +101,29 @@ export function StaffDashboard() {
 
       <GlassCard className="flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 blur-[40px] rounded-full pointer-events-none" />
-        <div className="relative z-10">
-          <h2 className="text-xl font-semibold text-white mb-1">
-            Today's Status
-          </h2>
-          <p className="text-slate-300 text-sm">
-            {todayRecord
-              ? `Checked in at ${new Date(todayRecord.checkIn).toLocaleTimeString()}`
-              : 'You have not checked in today.'}
-          </p>
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-1">
+              Today's Status
+            </h2>
+            <p className="text-slate-300 text-sm">
+              {todayRecord
+                ? `Checked in at ${new Date(todayRecord.checkIn).toLocaleTimeString()}`
+                : 'You have not checked in today.'}
+            </p>
+          </div>
+
+          {isCheckedIn && (
+            <div className="bg-primary-500/10 border border-primary-500/20 px-6 py-3 rounded-xl flex items-center gap-3">
+              <div className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
+              </div>
+              <div className="text-2xl font-mono font-bold text-white tracking-wider">
+                {formatTime(elapsedSeconds)}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-4 relative z-10">

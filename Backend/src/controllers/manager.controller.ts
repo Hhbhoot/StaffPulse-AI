@@ -73,7 +73,7 @@ export const getStaffDetails = async (req: AuthRequest, res: Response) => {
 
     const staff = await prisma.user.findUnique({
       where: { id: staffId, managerId },
-      select: { id: true, name: true, email: true, createdAt: true }
+      select: { id: true, name: true, email: true, createdAt: true },
     });
 
     if (!staff) {
@@ -84,19 +84,19 @@ export const getStaffDetails = async (req: AuthRequest, res: Response) => {
     const attendanceRecords = await prisma.attendance.findMany({
       where: { userId: staffId },
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 10,
     });
 
     const leaveRequests = await prisma.leaveRequest.findMany({
       where: { userId: staffId },
       orderBy: { createdAt: 'desc' },
-      take: 5
+      take: 5,
     });
 
     const stats = await prisma.attendance.aggregate({
       where: { userId: staffId, workingHours: { not: null } },
       _sum: { workingHours: true, overtimeHours: true },
-      _count: { id: true }
+      _count: { id: true },
     });
 
     res.status(200).json({
@@ -104,12 +104,15 @@ export const getStaffDetails = async (req: AuthRequest, res: Response) => {
       attendance: attendanceRecords,
       leaves: leaveRequests,
       stats: {
-        totalWorkingHours: stats._sum.workingHours ? parseFloat(stats._sum.workingHours.toFixed(2)) : 0,
-        totalOvertimeHours: stats._sum.overtimeHours ? parseFloat(stats._sum.overtimeHours.toFixed(2)) : 0,
-        daysPresent: stats._count.id
-      }
+        totalWorkingHours: stats._sum.workingHours
+          ? parseFloat(stats._sum.workingHours.toFixed(2))
+          : 0,
+        totalOvertimeHours: stats._sum.overtimeHours
+          ? parseFloat(stats._sum.overtimeHours.toFixed(2))
+          : 0,
+        daysPresent: stats._count.id,
+      },
     });
-
   } catch (error) {
     console.error('Get staff details error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -265,6 +268,11 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
 
     if (leaveRequest.user.managerId !== managerId) {
       res.status(403).json({ error: 'You do not have permission to update this leave request' });
+      return;
+    }
+
+    if (leaveRequest.status !== 'PENDING') {
+      res.status(400).json({ error: 'Leave request has already been processed' });
       return;
     }
 

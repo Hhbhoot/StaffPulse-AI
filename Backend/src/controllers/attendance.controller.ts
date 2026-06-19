@@ -33,6 +33,19 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Check for any pending check-outs from previous days
+    const lastAttendance = await prisma.attendance.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (lastAttendance && !lastAttendance.checkOut) {
+      res
+        .status(400)
+        .json({ error: 'Please check out from your previous session before checking in again.' });
+      return;
+    }
+
     const attendance = await prisma.attendance.create({
       data: {
         userId,
@@ -72,24 +85,14 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Find today's attendance record
+    // Find the most recent attendance record
     const attendance = await prisma.attendance.findFirst({
-      where: {
-        userId,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (!attendance) {
-      res.status(400).json({ error: 'No check-in record found for today' });
-      return;
-    }
-
-    if (attendance.checkOut) {
-      res.status(400).json({ error: 'Already checked out for today' });
+    if (!attendance || attendance.checkOut) {
+      res.status(400).json({ error: 'No active check-in session found' });
       return;
     }
 
@@ -186,7 +189,7 @@ export const getMyStats = async (req: AuthRequest, res: Response) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayRecord = await prisma.attendance.findFirst({
+    let todayRecord = await prisma.attendance.findFirst({
       where: {
         userId,
         createdAt: {
@@ -195,6 +198,16 @@ export const getMyStats = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // If there is a pending check-out from a previous day, use that as the active record
+    const lastRecord = await prisma.attendance.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (lastRecord && !lastRecord.checkOut) {
+      todayRecord = lastRecord;
+    }
 
     // Get all attendance for the current month
     const monthlyRecords = await prisma.attendance.findMany({

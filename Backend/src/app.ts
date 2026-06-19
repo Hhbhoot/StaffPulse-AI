@@ -9,7 +9,10 @@ app.set('trust proxy', 1); // trust first proxy
 
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'development' ? '*' : 'https://devsto-interview-task-onge.vercel.app',
+    origin:
+      process.env.NODE_ENV === 'development'
+        ? '*'
+        : 'https://devsto-interview-task-onge.vercel.app',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })

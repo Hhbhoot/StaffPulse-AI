@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { socket } from '../../lib/socket';
+import toast from 'react-hot-toast';
 
 export function MainLayout() {
   const { user, logout } = useAuth();
@@ -28,12 +30,31 @@ export function MainLayout() {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  React.useEffect(() => {
+    if (!user) return;
+
+    socket.on('leaveRequested', (leaveRequest) => {
+      // If the current user is the manager for the employee who requested leave
+      if (user.role === 'MANAGER' && leaveRequest.user.managerId === user.id) {
+        toast.success(`${leaveRequest.user.name} just requested leave!`, {
+          icon: '🛎️',
+          duration: 5000,
+        });
+      }
+    });
+
+    return () => {
+      socket.off('leaveRequested');
+    };
+  }, [user]);
+
   if (!user) return null;
 
   const navItems = {
     STAFF: [
       { path: '/staff', icon: LayoutDashboard, label: 'Dashboard' },
       { path: '/staff/history', icon: Clock, label: 'Attendance History' },
+      { path: '/staff/leaves', icon: Calendar, label: 'Leave Requests' },
       {
         path: '/staff/ai-assistant',
         icon: MessageSquare,
@@ -45,6 +66,7 @@ export function MainLayout() {
       { path: '/manager', icon: LayoutDashboard, label: 'Dashboard' },
       { path: '/manager/staff', icon: Users, label: 'Staff' },
       { path: '/manager/attendance', icon: Clock, label: 'Attendance' },
+      { path: '/manager/leaves', icon: Calendar, label: 'Leave Approvals' },
       { path: '/manager/reports', icon: Sparkles, label: 'AI Reports' },
       { path: '/manager/ai-search', icon: MessageSquare, label: 'AI Search' },
       { path: '/manager/ai-data', icon: Sparkles, label: 'AI Data Assistant' },

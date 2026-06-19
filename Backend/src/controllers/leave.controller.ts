@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { z } from 'zod';
+import { getIo } from '../lib/socket';
 
 const applyLeaveSchema = z.object({
   startDate: z.string().datetime(),
@@ -33,7 +34,18 @@ export const applyLeave = async (req: AuthRequest, res: Response) => {
         endDate: new Date(endDate),
         reason,
       },
+      include: {
+        user: {
+          select: { id: true, name: true, managerId: true },
+        },
+      },
     });
+
+    try {
+      getIo().emit('leaveRequested', leaveRequest);
+    } catch (e) {
+      console.error('Socket emit error:', e);
+    }
 
     res.status(201).json({ message: 'Leave request submitted successfully', leaveRequest });
   } catch (error) {
