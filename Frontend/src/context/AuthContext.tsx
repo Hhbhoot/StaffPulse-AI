@@ -13,6 +13,7 @@ interface User {
   name: string;
   email: string;
   role: 'ADMIN' | 'MANAGER' | 'STAFF';
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAuthenticated: boolean;
 }
 
@@ -74,9 +76,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate('/login');
   };
 
+  const updateUser = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isAuthenticated: !!token }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        updateUser,
+        isAuthenticated: !!token,
+      }}
     >
       {children}
     </AuthContext.Provider>

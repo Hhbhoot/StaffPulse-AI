@@ -13,6 +13,7 @@ import {
   Settings,
   Menu,
   X,
+  User,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -70,6 +71,7 @@ export function MainLayout() {
       { path: '/manager/reports', icon: Sparkles, label: 'AI Reports' },
       { path: '/manager/ai-search', icon: MessageSquare, label: 'AI Search' },
       { path: '/manager/ai-data', icon: Sparkles, label: 'AI Data Assistant' },
+      { path: '/manager/profile', icon: Settings, label: 'Profile' },
     ],
     ADMIN: [
       { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -86,8 +88,9 @@ export function MainLayout() {
         icon: FileText,
         label: 'Knowledge Base',
       },
-      { path: '/admin/reports', icon: Sparkles, label: 'Reports' },
-      { path: '/admin/settings', icon: Settings, label: 'Settings' },
+      { path: '/admin/reports', icon: Sparkles, label: 'AI Reports' },
+      { path: '/admin/settings', icon: Settings, label: 'System Settings' },
+      { path: '/admin/profile', icon: User, label: 'Profile' },
     ],
   };
 
@@ -169,11 +172,26 @@ export function MainLayout() {
         </nav>
 
         <div className="p-4 border-t border-white/10 relative z-10">
-          <div className="mb-4 px-2">
-            <div className="text-sm font-medium text-white truncate">
-              {user.name}
+          <div className="mb-4 px-2 flex items-center gap-3">
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="Profile"
+                className="w-8 h-8 rounded-full object-cover border border-white/20"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400">
+                <User className="w-4 h-4" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">
+                {user.name}
+              </div>
+              <div className="text-xs text-slate-500 truncate">
+                {user.email}
+              </div>
             </div>
-            <div className="text-xs text-slate-500 truncate">{user.email}</div>
           </div>
           <button
             onClick={logout}

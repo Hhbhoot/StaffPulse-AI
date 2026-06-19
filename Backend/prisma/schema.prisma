@@ -34,6 +34,8 @@ model User {
 
   role Role
 
+  avatarUrl String?
+
   managerId String?
   manager   User?   @relation("ManagerStaff", fields: [managerId], references: [id])
 

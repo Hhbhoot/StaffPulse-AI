@@ -79,6 +79,7 @@ function App() {
                 {/* Legacy routes */}
                 <Route path="team" element={<ManagerStaff />} />
                 <Route path="leaves" element={<ManagerLeaves />} />
+                <Route path="profile" element={<StaffProfile />} />
               </Route>
 
               {/* Admin Routes */}
@@ -94,6 +95,7 @@ function App() {
                 <Route path="knowledge-base" element={<AdminKnowledgeBase />} />
                 <Route path="reports" element={<AdminReports />} />
                 <Route path="settings" element={<AdminSettings />} />
+                <Route path="profile" element={<StaffProfile />} />
                 {/* Legacy route kept just in case */}
                 <Route path="leaves" element={<AdminLeaves />} />
               </Route>

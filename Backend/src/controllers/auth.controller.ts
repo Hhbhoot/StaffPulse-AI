@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { Role } from '@prisma/client';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { cloudinary } from '../lib/cloudinary';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
 
@@ -45,6 +46,7 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl,
       },
     });
   } catch (error) {
@@ -72,6 +74,7 @@ export const me = async (req: AuthRequest, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl,
       },
     });
   } catch (error) {
@@ -114,12 +117,56 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         name: true,
         email: true,
         role: true,
+        avatarUrl: true,
       },
     });
 
     res.status(200).json({ message: 'Profile updated successfully', user: updatedUser });
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const uploadAvatar = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: 'No image file provided' });
+      return;
+    }
+
+    // Upload to Cloudinary using upload_stream
+    const uploadPromise = new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'devsto_avatars' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file!.buffer);
+    });
+
+    const result = (await uploadPromise) as any;
+
+    // Update user in database
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: result.secure_url },
+      select: { id: true, name: true, email: true, role: true, avatarUrl: true },
+    });
+
+    res
+      .status(200)
+      .json({ message: 'Avatar updated successfully', user, avatarUrl: result.secure_url });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
