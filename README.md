@@ -1,9 +1,9 @@
-# DevSto Staff Attendance System
+# Staffpulse AI - Staff Attendance System
 
 A modern, full-stack role-based staff attendance and HR management system featuring real-time Socket.IO dashboard updates and deep AI integrations powered by Google Gemini and Pinecone vector databases.
 
 ### 🌐 Live Environments
-- **Frontend (Live):** [https://devsto-interview-task-onge.vercel.app](https://devsto-interview-task-onge.vercel.app)
+- **Frontend (Live):** [https://staffpulse-ai.vercel.app](https://staffpulse-ai.vercel.app)
 - **Backend (API Base):** [https://devsto-backend.onrender.com](https://devsto-backend.onrender.com)
 
 ---

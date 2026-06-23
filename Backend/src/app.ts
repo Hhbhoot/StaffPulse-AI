@@ -12,7 +12,7 @@ app.use(
     origin:
       process.env.NODE_ENV === 'development'
         ? '*'
-        : 'https://devsto-interview-task-onge.vercel.app',
+        : 'https://staffpulse-ai.vercel.app',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
